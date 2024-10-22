@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Вы действительно хотите удалить этот комментарий?</h2>
+
+<p>{{ comment.text }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Удалить</button>
+    <a href="{% url 'blog:post_detail' post_id=comment.post_id %}">Отменить</a>
+</form>
+{% endblock %}
