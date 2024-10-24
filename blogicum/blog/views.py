@@ -1,10 +1,16 @@
-from django.contrib.auth.mixins import LoginRequiredMixin, \
-    UserPassesTestMixin
+from django.contrib.auth.mixins import (
+    LoginRequiredMixin,
+    UserPassesTestMixin,
+)
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db.models import Count
-from django.http import Http404, HttpRequest, HttpResponse, \
-    HttpResponseRedirect
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseRedirect,
+)
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -14,7 +20,9 @@ from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from .models import Post, Category, Comment
 from .forms import CommentForm
 
-POSTS_SLICE = 5
+from .constants import (
+    PAGINATOR_LENGTH
+)
 
 
 class RedirectToProfileMixin:
@@ -125,14 +133,17 @@ def get_filtered_posts(user=None, category=None):
     if category:
         filters['category'] = category
 
-    return Post.objects.filter(**filters).\
-        select_related('category', 'author').\
-        annotate(comment_count=Count('comments')).order_by('-pub_date')
+    return (
+        Post.objects.filter(**filters)
+        .select_related('category', 'author')
+        .annotate(comment_count=Count('comments'))
+        .order_by('-pub_date')
+    )
 
 
 def index(request: HttpRequest) -> HttpResponse:
     post_list = get_filtered_posts()
-    paginator = Paginator(post_list, 10)
+    paginator = Paginator(post_list, PAGINATOR_LENGTH)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -143,18 +154,27 @@ def index(request: HttpRequest) -> HttpResponse:
 
 
 def post_detail(request: HttpRequest, id: int) -> HttpResponse:
-    post = get_object_or_404(Post.objects.select_related('category', 'author'),
-                             pk=id)
+    post = get_object_or_404(
+        Post.objects.select_related('category', 'author'),
+        pk=id
+    )
 
-    if (
-        (not post.category.is_published or not post.is_published
-            or post.pub_date > timezone.now())
-        and post.author != request.user
-    ):
-        raise Http404("Пост не найден.")
+    if post.author != request.user:
+        post = get_object_or_404(
+            Post.objects.select_related('category', 'author')
+            .filter(
+                category__is_published=True,
+                is_published=True,
+                pub_date__lte=timezone.now(),
+            ),
+            pk=id
+        )
 
-    comments = Comment.objects.filter(post=post).\
-        select_related('author').order_by('created_at')
+    comments = (
+        Comment.objects.filter(post=post)
+        .select_related('author')
+        .order_by('created_at')
+    )
     form = CommentForm()
 
     context = {
@@ -189,8 +209,11 @@ class ProfileView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.get_object()
-        posts = Post.objects.filter(author=user).\
-            annotate(comment_count=Count('comments')).order_by('-pub_date')
+        posts = (
+            Post.objects.filter(author=user)
+            .annotate(comment_count=Count('comments'))
+            .order_by('-pub_date')
+        )
         paginator = Paginator(posts, 10)
         page_number = self.request.GET.get('page')
         page_obj = paginator.get_page(page_number)

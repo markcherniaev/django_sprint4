@@ -84,8 +84,7 @@ class Post(BaseModel):
         verbose_name_plural = 'Публикации'
 
     def __str__(self):
-        return f'{self.text[:MODEL_TEXT_DISPLAY_MAX_LENGTH]}...' \
-            if len(self.text) > MODEL_TEXT_DISPLAY_MAX_LENGTH else self.text
+        return self.text[:MODEL_TEXT_DISPLAY_MAX_LENGTH] + '...'
 
 
 class Comment(models.Model):
